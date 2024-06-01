@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.append(['.','./../'])
+# sys.path.append(['.','./../'])
 os.environ['OMP_NUM_THREADS'] = '16'
 
 import json
@@ -36,22 +36,46 @@ import pickle
 parser = argparse.ArgumentParser(description='Training or pretraining on multiple PDE datasets')
 
 parser.add_argument('--model', type=str, default='DPOT')
-parser.add_argument('--dataset',type=str, default='ns2d')
+# parser.add_argument('--dataset',type=str, default='ns2d')
 
-parser.add_argument('--train_paths',nargs='+', type=str, default=['ns2d_fno_1e-5','ns2d_pdb_M1_eta1e-1_zeta1e-1'])
-parser.add_argument('--test_paths',nargs='+',type=str, default=['ns2d_pdb_M1_eta1e-1_zeta1e-1'])
+parser.add_argument('--train_paths',nargs='+', type=str, default=[
+                                                                  'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+                                                                  'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                                                                  'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+                                                                  'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                                                                  'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+                                                                  'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+                                                                  'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+                                                                  'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                                                                  'ns2d_pdb_incom',
+                                                                  'swe_pdb',
+                                                                  'ns2d_cond_pda'
+                                                                ])
+parser.add_argument('--test_paths',nargs='+',type=str, default=['ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128','ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128','ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128','ns2d_pdb_incom','swe_pdb', 'ns2d_cond_pda'])
 parser.add_argument('--resume_path',type=str, default='')
-parser.add_argument('--ntrain_list', nargs='+', type=int, default=[1000, 5000])
+parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
+                                                                                8000,
+                                                                                8000,
+                                                                                8000,
+                                                                                8000,
+                                                                                800,
+                                                                                800,
+                                                                                800,
+                                                                                800,
+                                                                                876,
+                                                                                800,
+                                                                                2496
+                                                                                ])
 parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
 
 parser.add_argument('--res', type=int, default=128)
-parser.add_argument('--noise_scale',type=float, default=0.0)
+parser.add_argument('--noise_scale',type=float, default=0.0005)
 # parser.add_argument('--n_channels',type=int,default=-1)
 
 ### shared params
-parser.add_argument('--width', type=int, default=512)
-parser.add_argument('--n_layers',type=int, default=4)
+parser.add_argument('--width', type=int, default=1024)
+parser.add_argument('--n_layers',type=int, default=12)
 parser.add_argument('--act',type=str, default='gelu')
 
 
@@ -64,11 +88,11 @@ parser.add_argument('--normalize',type=int, default=0)
 ### DPOT
 parser.add_argument('--patch_size',type=int, default=8)
 parser.add_argument('--n_blocks',type=int, default=8)
-parser.add_argument('--mlp_ratio',type=int, default=1)
+parser.add_argument('--mlp_ratio',type=int, default=4)
 parser.add_argument('--out_layer_dim', type=int, default=32)
 
-parser.add_argument('--batch_size', type=int, default=20)
-parser.add_argument('--epochs', type=int, default=500)
+parser.add_argument('--batch_size', type=int, default=80)
+parser.add_argument('--epochs', type=int, default=130)
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--opt',type=str, default='adam', choices=['adam','lamb'])
 parser.add_argument('--beta1',type=float,default=0.9)
@@ -77,11 +101,11 @@ parser.add_argument('--lr_method',type=str, default='cycle')
 parser.add_argument('--grad_clip',type=float, default=10000.0)
 parser.add_argument('--step_size', type=int, default=100)
 parser.add_argument('--step_gamma', type=float, default=0.5)
-parser.add_argument('--warmup_epochs',type=int, default=100)
+parser.add_argument('--warmup_epochs',type=int, default=26)
 parser.add_argument('--T_in', type=int, default=10)
 parser.add_argument('--T_ar', type=int, default=1)
 parser.add_argument('--T_bundle', type=int, default=1)
-parser.add_argument('--gpu', type=str, default="5")
+parser.add_argument('--gpu', type=str, default="1")
 parser.add_argument('--comment',type=str, default="")
 parser.add_argument('--log_path',type=str,default='')
 args = parser.parse_args()
@@ -104,10 +128,10 @@ print('args',args)
 
 
 train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, data_weights=args.data_weights)
-test_datasets = [MixedTemporalDataset(test_path, res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False) for i, test_path in enumerate(test_paths)]
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
-test_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=8) for test_dataset in test_datasets]
-ntrain, ntests = len(train_dataset), [len(test_dataset) for test_dataset in test_datasets]
+valid_datasets = [MixedTemporalDataset(test_path, res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=True) for i, test_path in enumerate(test_paths)]
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=12)
+valid_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=12) for test_dataset in valid_datasets]
+ntrain, ntests = len(train_dataset), [len(test_dataset) for test_dataset in valid_datasets]
 print('Train num {} test num {}'.format(train_dataset.n_sizes, ntests))
 ################################################################
 # load model
@@ -156,7 +180,7 @@ else:
     raise NotImplementedError
 
 comment = args.comment + '_{}_{}'.format(len(train_paths), ntrain)
-log_path = './logs/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('./logs',args.log_path + comment)
+log_path = 'logs/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('logs',args.log_path + comment)
 model_path = log_path + '/model.pth'
 if args.use_writer:
     writer = SummaryWriter(log_dir=log_path)
@@ -188,6 +212,7 @@ for ep in range(args.epochs):
 
     for xx, yy, msk, cls in train_loader:
         t_load += default_timer() - t_1
+        # print("t_load", t_load)
         t_1 = default_timer()
 
         loss, cls_loss = 0. , 0.
@@ -206,7 +231,7 @@ for ep in range(args.epochs):
             im, cls_pred = model(xx)
             loss += myloss(im, y, mask=msk)
 
-            ### classification
+            ## classification
             pred_labels = torch.argmax(cls_pred,dim=1)
             cls_loss += clsloss(cls_pred, cls.squeeze())
             cls_correct += (pred_labels == cls.squeeze()).sum().item()
@@ -245,14 +270,17 @@ for ep in range(args.epochs):
                 loss_previous = loss.item()
 
         t_train += default_timer() -  t_1
+        # print("t_train", t_train)
         t_1 = default_timer()
-
-
+        # max_mem = torch.cuda.max_memory_allocated() / 1024 ** 2
+        # s_mem = " MEM: {:.2f} MB ".format(max_mem)
+        # print(s_mem)
 
     test_l2_fulls, test_l2_steps = [], []
     with torch.no_grad():
         model.eval()
-        for id, test_loader in enumerate(test_loaders):
+        for id, test_loader in enumerate(valid_loaders):
+            print(args.test_paths[id])
             test_l2_full, test_l2_step = 0, 0
             for xx, yy, msk, _ in test_loader:
                 loss = 0
@@ -275,21 +303,32 @@ for ep in range(args.epochs):
 
                 test_l2_step += loss.item()
                 test_l2_full += myloss(pred, yy, mask=msk)
-
             test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] / (yy.shape[-2] / args.T_bundle), test_l2_full / ntests[id]
             test_l2_steps.append(test_l2_step_avg)
             test_l2_fulls.append(test_l2_full_avg)
             if args.use_writer:
-                writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg, ep)
-                writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg, ep)
+                writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg)
+                writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg)
+            print("test_l2_steps", test_l2_step_avg)
+            print("test_l2_fulls", test_l2_full_avg)
+        if args.use_writer:
+            torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path)
 
-    if args.use_writer:
-        torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path)
+        t_test = default_timer() - t_1
+        t2 = t_1 = default_timer()
+        lr = optimizer.param_groups[0]['lr']
+        print(
+            'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
+                ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
+                ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
+                ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
+                t_train / len(train_loader), t_load / len(train_loader), t_test))
 
-    t_test = default_timer() - t_1
-    t2 = t_1 = default_timer()
-    lr = optimizer.param_groups[0]['lr']
-    print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg,', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]), t_train / len(train_loader), t_load / len(train_loader), t_test))
+        # print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f},  time train avg {:.5f} load avg {:.5f} '.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg, t_train / len(train_loader), t_load / len(train_loader)))
+        # print(
+        #     ' test l2 step {} test l2 full {},  test {:.5f}'.format(
+        #         ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
+        #         ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]), t_test))
 
 
 
