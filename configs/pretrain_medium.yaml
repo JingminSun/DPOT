@@ -2,7 +2,7 @@ name: NS2d
 file: train_temporal_parallel.py
 
 
-dataset: ns2d
+dataset: allv2
 num_gpus: 2
 use_writer: True
 res: 128
@@ -16,21 +16,59 @@ step_gamma: 0.5
 epochs: 1000
 warmup_epochs: 200
 noise_scale: 0.0
-T_ar: 5
+T_ar: 1
 use_ln: 0
 normalize: 0
-T_bundle: 5
+T_bundle: 1
 grad_clip: 10000.0
 
 
 
 train_paths: [
-'ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','swe_pdb', 'ns2d_cond_pda'
-]
+        'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+        'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+        'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+        'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+        'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+        'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+        'ns2d_pdb_incom',
+        'swe_pdb',
+        'ns2d_cond_pda'
+    ]
+#  [
+#'ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','swe_pdb', 'ns2d_cond_pda'
+#]
 test_paths: [
-'ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','swe_pdb', 'ns2d_cond_pda'
-]
-ntrain_list: [8000,8000,8000,8000,800,2496]
+        'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+        'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+        'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+        'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+        'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+        'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+        'ns2d_pdb_incom',
+        'swe_pdb',
+        'ns2d_cond_pda'
+    ]
+#  [
+#'ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','swe_pdb', 'ns2d_cond_pda'
+#]
+ntrain_list: [
+        8000,
+        8000,
+        8000,
+        8000,
+        800,
+        800,
+        800,
+        800,
+        876,
+        800,
+        2496
+    ]
 
 
 
@@ -60,8 +98,8 @@ tasks:
   epochs: [1000]
   lr_method: [cycle]
   warmup_epochs: [200]
-  T_ar: [5]
-  T_bundle: [5]
+  T_ar: [1]
+  T_bundle: [1]
   beta1: [0.9]
   beta2: [0.9]
   batch_size: [20]

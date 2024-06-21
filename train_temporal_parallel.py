@@ -41,10 +41,40 @@ def get_args():
 
 
     parser.add_argument('--num_gpus',type=int,default=1)
-    parser.add_argument('--train_paths',nargs='+', type=str, default=['ns2d_pdb_M1_eta1e-1_zeta1e-1'])
-    parser.add_argument('--test_paths',nargs='+',type=str, default=['ns2d_pdb_M1_eta1e-1_zeta1e-1'])
+    parser.add_argument('--train_paths', nargs='+', type=str, default=[
+        'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+        'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+        'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+        'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+        'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+        'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+        'ns2d_pdb_incom',
+        'swe_pdb',
+        'ns2d_cond_pda'
+    ])
+    parser.add_argument('--test_paths', nargs='+', type=str,
+                        default=['ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                                 'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                                 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+                                 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                                 'ns2d_pdb_incom', 'swe_pdb', 'ns2d_cond_pda'])
+
     parser.add_argument('--resume_path',type=str, default='')
-    parser.add_argument('--ntrain_list', nargs='+', type=int, default=[9000])
+    parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
+        8000,
+        8000,
+        8000,
+        8000,
+        800,
+        800,
+        800,
+        800,
+        876,
+        800,
+        2496
+    ])
     parser.add_argument('--data_weights', nargs='+', type=int, default=[1])
     parser.add_argument('--use_writer', action='store_true',default=False)
 
@@ -115,8 +145,8 @@ if __name__ == "__main__":
     print('args',args)
 
 
-    train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True,data_weights=args.data_weights)
-    test_datasets = [MixedTemporalDataset(test_path, res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=True) for test_path in test_paths]
+    train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, valid=False,data_weights=args.data_weights)
+    test_datasets = [MixedTemporalDataset(test_path, res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=False) for test_path in test_paths]
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=12)
     test_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, drop_last=False, shuffle=False,num_workers=12) for test_dataset in test_datasets]
     ntrain, ntests = len(train_dataset), [len(test_dataset) for test_dataset in test_datasets]
@@ -166,7 +196,7 @@ if __name__ == "__main__":
         raise NotImplementedError
 
     comment = args.comment + '_{}_{}'.format(len(train_paths), ntrain)
-    log_path = './logs_pretrain/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('./logs_pretrain',args.log_path + comment)
+    log_path = 'logs_pretrain/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('logs_pretrain',args.log_path + comment)
     model_path_fun = lambda epoch: (log_path + '/model_{}.pth'.format(epoch))
     ckpt_save_epochs = 50
     if args.use_writer:
@@ -272,6 +302,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             # model.eval()
             for id, test_loader in enumerate(test_loaders):
+                print(args.test_paths[id])
                 test_l2_full, test_l2_step, ntest = 0., 0., 0
                 for xx, yy, msk, _ in test_loader:
                     loss = 0
@@ -296,12 +327,14 @@ if __name__ == "__main__":
                     test_l2_full += metrics_gathered.sum()
                     ntest += metrics_gathered.shape[0] * xx.shape[0]
 
-                test_l2_step_avg, test_l2_full_avg = test_l2_step / ntest / (yy.shape[-2] / args.T_bundle), test_l2_full.item() / ntest
+                test_l2_step_avg, test_l2_full_avg = test_l2_step.item() / ntest / (yy.shape[-2] / args.T_bundle), test_l2_full.item() / ntest
                 test_l2_steps.append(test_l2_step_avg)
                 test_l2_fulls.append(test_l2_full_avg)
                 if args.use_writer:
                     writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg, ep)
                     writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg, ep)
+                print("test_l2_steps", ep, test_l2_step_avg)
+                print("test_l2_fulls", ep, test_l2_full_avg)
 
         if args.use_writer:
             torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path_fun(ep // ckpt_save_epochs))
@@ -309,8 +342,21 @@ if __name__ == "__main__":
         t_test = default_timer() - t_1
         t2 = t_1 = default_timer()
         lr = optimizer.param_groups[0]['lr']
-        print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, cls acc {:.5f}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg,', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]), cls_acc, t_train / len(train_loader), t_load / len(train_loader), t_test))
+        print(
+            'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
+                ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
+                ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
+                ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
+                t_train / len(train_loader), t_load / len(train_loader), t_test))
 
+        # if args.use_writer:
+        #     torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path_fun(ep // ckpt_save_epochs))
+        #
+        # t_test = default_timer() - t_1
+        # t2 = t_1 = default_timer()
+        # lr = optimizer.param_groups[0]['lr']
+        # print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, cls acc {:.5f}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg,', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]), cls_acc, t_train / len(train_loader), t_load / len(train_loader), t_test))
+        #
 
 
 

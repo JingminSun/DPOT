@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.append(['.','./../'])
+# sys.path.append(['.','./../'])
 os.environ['OMP_NUM_THREADS'] = '16'
 
 import json
@@ -31,31 +31,60 @@ from models.dpot import DPOTNet
 parser = argparse.ArgumentParser(description='Training or pretraining for the same data type')
 
 ### currently no influence
-parser.add_argument('--model', type=str, default='AFNO')
+parser.add_argument('--model', type=str, default='DPOT')
 parser.add_argument('--dataset',type=str, default='ns2d')
 
-parser.add_argument('--train_paths',nargs='+', type=str, default=['ns2d_pdb_M1_eta1e-1_zeta1e-1'])
-parser.add_argument('--test_paths',nargs='+',type=str, default=['ns2d_fno_1e-5','swe_pdb','dr_pdb'])
-parser.add_argument('--resume_path',type=str, default='/root/files/pdessl/logs_pretrain/AFNO_ns2d_1218_17_20_14:S_12_114400/model_99.pth')
-parser.add_argument('--ntrain_list', nargs='+', type=int, default=[100])
-parser.add_argument('--ntest_list',nargs='+',type=int, default=[100,50,100])
+parser.add_argument('--train_paths', nargs='+', type=str, default=[
+    'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+    'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+    'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+    'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+    'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+    'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+    'ns2d_pdb_incom',
+    'swe_pdb',
+    'ns2d_cond_pda'
+])
+parser.add_argument('--test_paths', nargs='+', type=str,
+                    default=['ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                             'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                             'ns2d_pdb_incom', 'swe_pdb', 'ns2d_cond_pda'])
+parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_allv2_0614_18_41_07:M_11_39372/model_19.pth')
+parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
+    8000,
+    8000,
+    8000,
+    8000,
+    800,
+    800,
+    800,
+    800,
+    876,
+    800,
+    2496
+])
 parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
 
 parser.add_argument('--res', type=int, default=128)
-parser.add_argument('--noise_scale',type=float, default=0.0)
+parser.add_argument('--noise_scale',type=float, default=0.0005)
 # parser.add_argument('--n_channels',type=int,default=-1)
+
 
 ### shared params
 parser.add_argument('--width', type=int, default=1024)
-parser.add_argument('--n_layers',type=int, default=6)
+parser.add_argument('--n_layers',type=int, default=12)
 parser.add_argument('--act',type=str, default='gelu')
 
 ### GNOT params
 parser.add_argument('--max_nodes',type=int, default=-1)
 
 ### FNO params
-parser.add_argument('--modes', type=int, default=20)
+parser.add_argument('--modes', type=int, default=32)
 parser.add_argument('--use_ln',type=int, default=0)
 parser.add_argument('--normalize',type=int, default=0)
 
@@ -63,21 +92,21 @@ parser.add_argument('--normalize',type=int, default=0)
 ### AFNO
 parser.add_argument('--patch_size',type=int, default=8)
 parser.add_argument('--n_blocks',type=int, default=8)
-parser.add_argument('--mlp_ratio',type=int, default=1)
+parser.add_argument('--mlp_ratio',type=int, default=4)
 parser.add_argument('--out_layer_dim', type=int, default=32)
 
 
-parser.add_argument('--batch_size', type=int, default=10)
-parser.add_argument('--epochs', type=int, default=500)
+parser.add_argument('--batch_size', type=int, default=20)
+parser.add_argument('--epochs', type=int, default=1000)
 parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--opt',type=str, default='adam', choices=['adam','lamb'])
 parser.add_argument('--beta1',type=float,default=0.9)
-parser.add_argument('--beta2',type=float,default=0.999)
-parser.add_argument('--lr_method',type=str, default='step')
+parser.add_argument('--beta2',type=float,default=0.9)
+parser.add_argument('--lr_method',type=str, default='cycle')
 parser.add_argument('--grad_clip',type=float, default=10000.0)
 parser.add_argument('--step_size', type=int, default=100)
 parser.add_argument('--step_gamma', type=float, default=0.5)
-parser.add_argument('--warmup_epochs',type=int, default=50)
+parser.add_argument('--warmup_epochs',type=int, default=200)
 parser.add_argument('--sub', type=int, default=1)
 parser.add_argument('--T_in', type=int, default=10)
 parser.add_argument('--T_ar', type=int, default=1)
@@ -88,7 +117,7 @@ parser.add_argument('--log_path',type=str,default='')
 
 
 parser.add_argument('--n_channels',type=int, default=4)
-parser.add_argument('--n_class',type=int,default=12)
+parser.add_argument('--n_class',type=int,default=11)
 
 args = parser.parse_args()
 
@@ -109,8 +138,11 @@ args.data_weights = [1] * len(args.train_paths) if len(args.data_weights) == 1 e
 print('args',args)
 
 
-train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, data_weights=args.data_weights, n_channels=args.n_channels)
-test_datasets = [MixedTemporalDataset(test_path, [args.ntest_list[i]], res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False) for i, test_path in enumerate(test_paths)]
+train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, valid=False, data_weights=args.data_weights, n_channels=args.n_channels)
+# test_datasets = [MixedTemporalDataset(test_path, [args.ntest_list[i]], res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=False) for i, test_path in enumerate(test_paths)]
+test_datasets = [
+    MixedTemporalDataset(test_path, res=args.res, n_channels=train_dataset.n_channels, t_in=args.T_in, t_ar=-1,
+                         normalize=False, train=False, valid=False) for test_path in test_paths]
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 test_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=8) for test_dataset in test_datasets]
 ntrain, ntests = len(train_dataset), [len(test_dataset) for test_dataset in test_datasets]
@@ -159,7 +191,7 @@ else:
     raise NotImplementedError
 
 comment = args.comment + '_{}_{}'.format(len(train_paths), ntrain)
-log_path = './logs/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('./logs',args.log_path + comment)
+log_path = 'logs/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('logs',args.log_path + comment)
 model_path = log_path + '/model.pth'
 if args.use_writer:
     writer = SummaryWriter(log_dir=log_path)
@@ -215,8 +247,9 @@ with torch.no_grad():
         test_l2_steps.append(test_l2_step_avg)
         test_l2_fulls.append(test_l2_full_avg.item())
 
+
 print(test_l2_fulls)
 for i in range(len(test_paths)):
-    print('{}: {:.5f}'.format(test_paths[i], test_l2_fulls[i]))
+    print('{}: {:.5f}, {:.5f}'.format(test_paths[i], test_l2_steps[i],test_l2_fulls[i]))
 
 print('Total time {} total steps {} Avg time {}'.format(time_test, total_steps, time_test/total_steps))
