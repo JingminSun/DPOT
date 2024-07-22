@@ -75,30 +75,33 @@ class MixedTemporalDataset(Dataset):
 
         self.data_files = []
         for name in self.data_names:
-            if DATASET_DICT[name]['scatter_storage']:
+            # if DATASET_DICT[name]['scatter_storage']:
                 # def open_hdf5_file(path, idx):
                 #     return h5py.File(f'{path}/data_{idx}.hdf5', 'r')['data'][:]
-                path = DATASET_DICT[name]['path']
-                # self.data_files.append(partial(open_hdf5_file, path))
+            path = DATASET_DICT[name]['path']
+            # self.data_files.append(partial(open_hdf5_file, path))
 
-                if 'ns2d_pdb_M' in name:
-                    preprocess_function = partial(self.preprocess_pdebench_data, path,name)
-                elif name == 'swe_pdb':
-                    preprocess_function = partial(self.preprocess_swe_data, path,name)
-                elif name == 'ns2d_cond_pda':
-                    preprocess_function = partial(self.preprocess_ns2darena_data, path,name)
-                elif name == 'ns2d_pdb_incom':
-                    preprocess_function = partial(self.preprocess_incomp_data,path,name)
-                else:
-                    raise ValueError("Unknown dataset type")
-                self.data_files.append(preprocess_function)
+            if 'ns2d_pdb_M' in name:
+                preprocess_function = partial(self.preprocess_pdebench_data, path,name)
+            elif name == 'swe_pdb':
+                preprocess_function = partial(self.preprocess_swe_data, path,name)
+            elif name == 'ns2d_cond_pda':
+                preprocess_function = partial(self.preprocess_ns2darena_cond_data, path,name)
+            elif name == 'ns2d_pda':
+                preprocess_function = partial(self.preprocess_ns2darena_data, path,name)
+            elif name == 'ns2d_pdb_incom':
+                preprocess_function = partial(self.preprocess_incomp_data,path,name)
+            elif name == 'cfdbench':
+                preprocess_function = partial(self.preprocess_cfd_data, path, name)
+            else:
+                raise ValueError("Unknown dataset type")
+            self.data_files.append(preprocess_function)
                 # if DATASET_DICT[name]['scatter_storage']:
                 #     if train:
                 #         self.data_files.append(lambda x, name=name:h5py.File(DATASET_DICT[name]['train_path'] + '/data_{}.hdf5'.format(x),'r')['data'])
                 #     else:
                 #         self.data_files.append(lambda x, name=name:h5py.File(DATASET_DICT[name]['test_path'] + '/data_{}.hdf5'.format(x),'r')['data'])
-            else:
-                self.data_files.append(self.preprocess_data(path, name))
+            # else:
                 # self.data_files.append(h5py.File(DATASET_DICT[name]['path']) )
         # self.data_files = []
         # for name in self.data_names:
@@ -158,9 +161,13 @@ class MixedTemporalDataset(Dataset):
         elif name == 'swe_pdb':
             return self.preprocess_swe_data(path,name)
         elif name =='ns2d_cond_pda':
+            return self.preprocess_ns2darena_cond_data(path,name)
+        elif name =='ns2d_pda':
             return self.preprocess_ns2darena_data(path,name)
         elif name == "ns2d_pdb_incom":
             return self.preprocess_incomp_data(path,name)
+        elif name == 'cfdbench':
+            return self.preprocess_cfd_data(path,name)
         else:
             raise "Unknown type"
     #
@@ -182,6 +189,25 @@ class MixedTemporalDataset(Dataset):
             # y = np.array(f['y-coordinate'], dtype=np.float32)
             data = np.stack([vx, vy, density, pressure], axis=-1).transpose(1,2,0,3)  if idx is not None else  np.stack([vx, vy, density, pressure], axis=-1).transpose( 0,2, 3, 1, 4)
         return data
+
+    def preprocess_cfd_data(self, path, name, idx=None):
+        if self.train:
+            path = os.path.join(path, 'ns2d_cdb_train.hdf5')
+        else:
+            if self.valid:
+                path = os.path.join(path, 'ns2d_cdb_valid.hdf5')
+            else:
+                path = os.path.join(path, 'ns2d_cdb_test.hdf5')
+        with h5py.File(path, 'r') as f:
+            keys = list(f.keys())
+            keys.sort()
+            data = np.array(f["data"][idx],dtype=np.float32).transpose(1,2,0,3) if idx is not None else np.array(f["data"],dtype=np.float32).transpose( 0,2, 3, 1, 4)
+            # t = np.array(f['t-coordinate'], dtype=np.float32)
+            # x = np.array(f['x-coordinate'], dtype=np.float32)
+            # y = np.array(f['y-coordinate'], dtype=np.float32)
+
+        return data
+
     #
     def preprocess_swe_data(self,path,name, idx = None):
         if not self.train and idx is not None:
@@ -200,39 +226,37 @@ class MixedTemporalDataset(Dataset):
                 data = np.stack(data, axis=0).transpose(0, 2, 3, 1, 4)
         return data
 
-    # def preprocess_ns2darena_data(self,path,idx=None):
-    #     data = []
-    #     for root, dirs, files in os.walk(path):
-    #         for file in tqdm(files):
-    #             if not file.endswith('.h5'):
-    #                 continue
-    #             with h5py.File(os.path.join(root, file), 'r') as f:
-    #                 if 'test' in file and not self.train and not self.valid:
-    #                     key = 'test'
-    #                 elif 'train' in file and self.train:
-    #                     key = 'train'
-    #                 elif 'valid' in file and self.valid and not self.train:
-    #                     key = 'valid'
-    #                 else:
-    #                     continue
-    #                 if idx is not None:
-    #                     u = f[key]['u'][idx]
-    #                     vx = f[key]['vx'][idx]
-    #                     vy = f[key]['vy'][idx]
-    #                     out = np.stack([u, vx, vy], axis=-1)
-    #                     out = np.transpose(out, (2, 3, 0, 1))
-    #                     return out
-    #                 else:
-    #                     u = f[key]['u'][:]
-    #                     vx = f[key]['vx'][:]
-    #                     vy = f[key]['vy'][:]
-    #                     out = np.stack([u, vx, vy], axis=-1)
-    #                     out = np.transpose(out, (0, 2, 3, 1, 4))
-    #                     data.append(out)
-    #     data = np.concatenate(data, axis=0)  # Concatenate all the data
-    #     return data
 
     def preprocess_ns2darena_data(self, path,name, idx=None):
+        if idx is not None:
+            data_files = sorted([f for f in os.listdir(path) if f.endswith('.h5') and (self.train and 'train' in f or self.valid and 'valid' in f or not self.train and not self.valid and 'test' in f)])
+            file_idx = idx // 52  # Assuming each file has 32 samples, adjust as needed
+            local_idx = idx % 52
+            with h5py.File(os.path.join(path, data_files[file_idx]), 'r') as f:
+                key = 'train' if 'train' in data_files[file_idx] else 'valid' if 'valid' in data_files[file_idx] else 'test'
+                u = f[key]['u'][local_idx]
+                vx = f[key]['vx'][local_idx]
+                vy = f[key]['vy'][local_idx]
+                out = np.stack([u, vx, vy], axis=-1)
+                # out = np.transpose(out, (2, 3, 0, 1))
+                return out
+        else:
+            data = []
+            for root, dirs, files in os.walk(path):
+                for file in tqdm(files):
+                    if not file.endswith('.h5'):
+                        continue
+                    with h5py.File(os.path.join(root, file), 'r') as f:
+                        key = 'train' if 'train' in file else 'valid' if 'valid' in file else 'test'
+                        u = f[key]['u'][:]
+                        vx = f[key]['vx'][:]
+                        vy = f[key]['vy'][:]
+                        out = np.stack([u, vx, vy], axis=-1)
+                        # out = np.transpose(out, (0, 2, 3, 1, 4))
+                        data.append(out)
+            data = np.concatenate(data, axis=0)
+            return data
+    def preprocess_ns2darena_cond_data(self, path,name, idx=None):
         if idx is not None:
             data_files = sorted([f for f in os.listdir(path) if f.endswith('.h5') and (self.train and 'train' in f or self.valid and 'valid' in f or not self.train and not self.valid and 'test' in f)])
             file_idx = idx // 32  # Assuming each file has 32 samples, adjust as needed

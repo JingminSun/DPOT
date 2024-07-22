@@ -35,37 +35,41 @@ parser.add_argument('--model', type=str, default='DPOT')
 parser.add_argument('--dataset',type=str, default='ns2d')
 
 parser.add_argument('--train_paths', nargs='+', type=str, default=[
-    'ns2d_pdb_M1_eta1e-1_zeta1e-1',
-    'ns2d_pdb_M1_eta1e-2_zeta1e-2',
-    'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
-    'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
-    'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
-    'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+    # 'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+    # 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+    # 'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+    # 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+    # 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+    # 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+    # 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+    # 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
     'ns2d_pdb_incom',
-    'swe_pdb',
-    'ns2d_cond_pda'
+    # 'swe_pdb',
+    # 'ns2d_cond_pda'
 ])
 parser.add_argument('--test_paths', nargs='+', type=str,
-                    default=['ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
-                             'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
-                             'ns2d_pdb_incom', 'swe_pdb', 'ns2d_cond_pda'])
+                    default=[
+                        # 'ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                        #      'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                        #      'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+                        #      'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                             'ns2d_pdb_incom',
+                        # 'swe_pdb',
+                        # 'ns2d_cond_pda'
+                    ])
 parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_allv2_0614_18_41_07:M_11_39372/model_19.pth')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
-    8000,
-    8000,
-    8000,
-    8000,
-    800,
-    800,
-    800,
-    800,
+    # 8000,
+    # 8000,
+    # 8000,
+    # 8000,
+    # 800,
+    # 800,
+    # 800,
+    # 800,
     876,
-    800,
-    2496
+    # 800,
+    # 2496
 ])
 parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
@@ -140,10 +144,11 @@ print('args',args)
 
 train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, valid=False, data_weights=args.data_weights, n_channels=args.n_channels)
 # test_datasets = [MixedTemporalDataset(test_path, [args.ntest_list[i]], res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=False) for i, test_path in enumerate(test_paths)]
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
 test_datasets = [
     MixedTemporalDataset(test_path, res=args.res, n_channels=train_dataset.n_channels, t_in=args.T_in, t_ar=-1,
                          normalize=False, train=False, valid=False) for test_path in test_paths]
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
+
 test_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=8) for test_dataset in test_datasets]
 ntrain, ntests = len(train_dataset), [len(test_dataset) for test_dataset in test_datasets]
 print('Train num {} test num {}'.format(train_dataset.n_sizes, ntests))
@@ -211,16 +216,38 @@ myloss = SimpleLpLoss(size_average=False)
 clsloss = torch.nn.CrossEntropyLoss(reduction='sum')
 
 
+def get_error(residuals,tar):
+
+
+    t = residuals.shape[1]
+
+    error = torch.sqrt((residuals **2).flatten(2).sum(2))
+    scale = 1e-8 + torch.sqrt((tar ** 2).flatten(2).sum(2))
+
+    error = torch.div(error,scale).sum()/t
+    return error
+
+
 test_l2_fulls, test_l2_steps, time_test, total_steps = [], [], 0., 0
 model.eval()
+total_pdb=0
+step_pdb =0
+num_samples =0
 with torch.no_grad():
     for id, test_loader in enumerate(test_loaders):
+        test_name = args.test_paths[id]
+        print(test_name)
+        num_samples += ntests[id]
+
         test_l2_full, test_l2_step = 0, 0
+        nn = 0
         for xx, yy, msk, _ in test_loader:
             loss = 0
+            error = 0
             xx = xx.to(device)
             yy = yy.to(device)
             msk = msk.to(device)
+            nn += xx.shape[0]
 
 
             for t in range(0, yy.shape[-2], args.T_bundle):
@@ -232,6 +259,9 @@ with torch.no_grad():
 
                 loss += myloss(im, y, mask=msk)
 
+                y_reshape = y.permute(0,3,4,1, 2) # (bs,h,w,t,c) to (bs,t,c,h,w)
+                im_reshape = im.permute(0,3,4, 1, 2)
+                error += get_error(im_reshape-y_reshape,y_reshape)
                 if t == 0:
                     pred = im
                 else:
@@ -240,16 +270,26 @@ with torch.no_grad():
                 xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
                 total_steps += xx.shape[0]
 
-            test_l2_step += loss.item()
-            test_l2_full += myloss(pred, yy, mask=msk)
+            test_l2_step += error/ (yy.shape[-2] / args.T_bundle) # sum step error/5
+            # test_l2_step += loss.item()/ (yy.shape[-2] / args.T_bundle)
+            # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
+            pred_reshape = pred.permute(0, 3,4, 1, 2)
+            yy_reshape = yy.permute(0,3,4,1,2)
+            # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
+            test_l2_full += get_error(pred_reshape-yy_reshape,yy_reshape)
+            # test_l2_full +=myloss(pred, yy, mask=msk)
 
-        test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] / (yy.shape[-2] / args.T_bundle), test_l2_full / ntests[id]
-        test_l2_steps.append(test_l2_step_avg)
+        test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] , test_l2_full / ntests[id]
+        test_l2_steps.append(test_l2_step_avg.item())
         test_l2_fulls.append(test_l2_full_avg.item())
+        if "ns2d_pdb_M1" in test_name:
+            total_pdb += test_l2_full
+            step_pdb += test_l2_step
 
 
+print(test_l2_steps)
 print(test_l2_fulls)
 for i in range(len(test_paths)):
     print('{}: {:.5f}, {:.5f}'.format(test_paths[i], test_l2_steps[i],test_l2_fulls[i]))
-
+print('ns2d_pdb_M1: {:.5f}, {:.5f}'.format( step_pdb/num_samples,total_pdb/num_samples))
 print('Total time {} total steps {} Avg time {}'.format(time_test, total_steps, time_test/total_steps))
