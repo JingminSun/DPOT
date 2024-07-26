@@ -1,9 +1,9 @@
 name: NS2d
-file: train_temporal_parallel.py
+file: train_temporal.py
 
 
-dataset: allv2
-num_gpus: 2
+dataset: new
+#num_gpus: 2
 use_writer: True
 res: 128
 modes: 20
@@ -35,7 +35,9 @@ train_paths: [
         'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
         'ns2d_pdb_incom',
         'swe_pdb',
-        'ns2d_cond_pda'
+        'ns2d_cond_pda',
+        'ns2d_pda',
+        'cfdbench',
     ]
 #  [
 #'ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','swe_pdb', 'ns2d_cond_pda'
@@ -51,11 +53,11 @@ test_paths: [
         'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
         'ns2d_pdb_incom',
         'swe_pdb',
-        'ns2d_cond_pda'
+        'ns2d_cond_pda',
+        'ns2d_pda',
+        'cfdbench',
     ]
-#  [
-#'ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','swe_pdb', 'ns2d_cond_pda'
-#]
+
 ntrain_list: [
         8000,
         8000,
@@ -67,7 +69,9 @@ ntrain_list: [
         800,
         876,
         800,
-        2496
+        2496,
+        5200,
+        8774
     ]
 
 
@@ -102,6 +106,6 @@ tasks:
   T_bundle: [1]
   beta1: [0.9]
   beta2: [0.9]
-  batch_size: [20]
+  batch_size: [40]
 
 

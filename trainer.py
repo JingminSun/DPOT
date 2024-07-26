@@ -61,6 +61,8 @@ class Trainer:
         log_path = f"{self.config['model']}_{self.config['dataset']}_{time.strftime('%m%d_%H_%M_%S')}"
         base_args.extend(['--log_path', log_path, '--gpu', str(gpu)])
         # print(f"Starting task with args: {' '.join(base_args)}")
+        env = os.environ.copy()
+        env['CUDA_VISIBLE_DEVICES'] = str(gpu)
         process = subprocess.Popen(base_args)
         print(f"Task started on GPU {gpu}")
         self.processes[gpu] = process

@@ -35,41 +35,48 @@ parser.add_argument('--model', type=str, default='DPOT')
 parser.add_argument('--dataset',type=str, default='ns2d')
 
 parser.add_argument('--train_paths', nargs='+', type=str, default=[
-    # 'ns2d_pdb_M1_eta1e-1_zeta1e-1',
-    # 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
-    # 'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
-    # 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-    # 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
-    # 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-    # 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
-    # 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+    'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+    'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+    'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+    'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+    'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+    'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
     'ns2d_pdb_incom',
-    # 'swe_pdb',
-    # 'ns2d_cond_pda'
+    'swe_pdb',
+    'ns2d_cond_pda',
+    'ns2d_pda',
+    'cfdbench',
 ])
 parser.add_argument('--test_paths', nargs='+', type=str,
                     default=[
-                        # 'ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
-                        #      'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-                        #      'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-                        #      'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                        'ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                             'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+                             'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
                              'ns2d_pdb_incom',
-                        # 'swe_pdb',
-                        # 'ns2d_cond_pda'
+                        'swe_pdb',
+                        'ns2d_cond_pda',
+                        'ns2d_pda',
+                        'cfdbench',
                     ])
-parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_allv2_0614_18_41_07:M_11_39372/model_19.pth')
+parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0722_20_49_19M_13_53346/model.pth')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
-    # 8000,
-    # 8000,
-    # 8000,
-    # 8000,
-    # 800,
-    # 800,
-    # 800,
-    # 800,
+    8000,
+    8000,
+    8000,
+    8000,
+    800,
+    800,
+    800,
+    800,
     876,
-    # 800,
-    # 2496
+    800,
+    2496,
+    5200,
+    8774
 ])
 parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
@@ -121,7 +128,7 @@ parser.add_argument('--log_path',type=str,default='')
 
 
 parser.add_argument('--n_channels',type=int, default=4)
-parser.add_argument('--n_class',type=int,default=11)
+parser.add_argument('--n_class',type=int,default=13)
 
 args = parser.parse_args()
 
@@ -270,21 +277,21 @@ with torch.no_grad():
                 xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
                 total_steps += xx.shape[0]
 
-            test_l2_step += error/ (yy.shape[-2] / args.T_bundle) # sum step error/5
-            # test_l2_step += loss.item()/ (yy.shape[-2] / args.T_bundle)
-            # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
-            pred_reshape = pred.permute(0, 3,4, 1, 2)
-            yy_reshape = yy.permute(0,3,4,1,2)
-            # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
-            test_l2_full += get_error(pred_reshape-yy_reshape,yy_reshape)
-            # test_l2_full +=myloss(pred, yy, mask=msk)
+                test_l2_step += error / (yy.shape[-2] / args.T_bundle)  # sum step error/5
+                # test_l2_step += loss.item()/ (yy.shape[-2] / args.T_bundle)
+                # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
+                pred_reshape = pred.permute(0, 3, 4, 1, 2)
+                yy_reshape = yy.permute(0, 3, 4, 1, 2)
+                # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
+                test_l2_full += get_error(pred_reshape - yy_reshape, yy_reshape)
+                # test_l2_full +=myloss(pred, yy, mask=msk)
 
-        test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] , test_l2_full / ntests[id]
-        test_l2_steps.append(test_l2_step_avg.item())
-        test_l2_fulls.append(test_l2_full_avg.item())
-        if "ns2d_pdb_M1" in test_name:
-            total_pdb += test_l2_full
-            step_pdb += test_l2_step
+            test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id], test_l2_full / ntests[id]
+            test_l2_steps.append(test_l2_step_avg.item())
+            test_l2_fulls.append(test_l2_full_avg.item())
+            if "ns2d_pdb_M1" in test_name:
+                total_pdb += test_l2_full
+                step_pdb += test_l2_step
 
 
 print(test_l2_steps)

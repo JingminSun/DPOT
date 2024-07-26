@@ -52,7 +52,9 @@ def get_args():
         'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
         'ns2d_pdb_incom',
         'swe_pdb',
-        'ns2d_cond_pda'
+        'ns2d_cond_pda',
+        'ns2d_pda',
+        'cfdbench',
     ])
     parser.add_argument('--test_paths', nargs='+', type=str,
                         default=['ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
@@ -73,7 +75,9 @@ def get_args():
         800,
         876,
         800,
-        2496
+        2496,
+        5200,
+        8774
     ])
     parser.add_argument('--data_weights', nargs='+', type=int, default=[1])
     parser.add_argument('--use_writer', action='store_true',default=False)
@@ -118,6 +122,7 @@ def get_args():
     # parser.add_argument('--T_ar_test', type=int, default=10)
     parser.add_argument('--T_bundle', type=int, default=1)
     # parser.add_argument('--T', type=int, default=20)
+    parser.add_argument('--gpu', type=str, default="1")
     # parser.add_argument('--step', type=int, default=1)
     parser.add_argument('--comment',type=str, default="")
     parser.add_argument('--log_path',type=str,default='')
@@ -132,8 +137,8 @@ if __name__ == "__main__":
     accelerator = Accelerator(split_batches=False)
     device = accelerator.device
 
-
-
+    device1 = torch.device(f'cuda:{args.gpu}' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device1}")
 
     ################################################################
     # load data and dataloader

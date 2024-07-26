@@ -36,36 +36,46 @@ import pickle
 parser = argparse.ArgumentParser(description='Training or pretraining on multiple PDE datasets')
 
 parser.add_argument('--model', type=str, default='DPOT')
-# parser.add_argument('--dataset',type=str, default='ns2d')
+parser.add_argument('--dataset',type=str, default='ns2d')
 
-parser.add_argument('--train_paths',nargs='+', type=str, default=[
-                                                                  'ns2d_pdb_M1_eta1e-1_zeta1e-1',
-                                                                  'ns2d_pdb_M1_eta1e-2_zeta1e-2',
-                                                                  'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
-                                                                  'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-                                                                  'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
-                                                                  'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-                                                                  'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
-                                                                  'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
-                                                                  'ns2d_pdb_incom',
-                                                                  'swe_pdb',
-                                                                  'ns2d_cond_pda'
-                                                                ])
-parser.add_argument('--test_paths',nargs='+',type=str, default=['ns2d_pdb_M1_eta1e-1_zeta1e-1','ns2d_pdb_M1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-1_zeta1e-1','ns2d_pdb_M1e-1_eta1e-2_zeta1e-2','ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128','ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128','ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128','ns2d_pdb_incom','swe_pdb', 'ns2d_cond_pda'])
-parser.add_argument('--resume_path',type=str, default='')
+parser.add_argument('--train_paths', nargs='+', type=str, default=[
+    'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+    'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+    'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+    'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+    'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+    'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+    'ns2d_pdb_incom',
+    'swe_pdb',
+    'ns2d_cond_pda',
+    'ns2d_pda',
+    'cfdbench',
+])
+parser.add_argument('--test_paths', nargs='+', type=str,
+                    default=['ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                             'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                             'ns2d_pdb_incom', 'swe_pdb', 'ns2d_cond_pda'])
+
+parser.add_argument('--resume_path', type=str, default='')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
-                                                                                8000,
-                                                                                8000,
-                                                                                8000,
-                                                                                8000,
-                                                                                800,
-                                                                                800,
-                                                                                800,
-                                                                                800,
-                                                                                876,
-                                                                                800,
-                                                                                2496
-                                                                                ])
+    8000,
+    8000,
+    8000,
+    8000,
+    800,
+    800,
+    800,
+    800,
+    876,
+    800,
+    2496,
+    5200,
+    8774
+])
 parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
 
@@ -112,7 +122,7 @@ args = parser.parse_args()
 
 
 device = torch.device("cuda:{}".format(args.gpu))
-
+print(f"Using device: {device}")
 print(f"Current working directory: {os.getcwd()}")
 
 
@@ -127,10 +137,10 @@ args.data_weights = [1] * len(args.train_paths) if len(args.data_weights) == 1 e
 print('args',args)
 
 
-train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, data_weights=args.data_weights)
-valid_datasets = [MixedTemporalDataset(test_path, res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=True) for i, test_path in enumerate(test_paths)]
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=12)
-valid_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=12) for test_dataset in valid_datasets]
+train_dataset = MixedTemporalDataset(args.train_paths, args.ntrain_list, res=args.res, t_in = args.T_in, t_ar = args.T_ar, normalize=False,train=True, valid=False,data_weights=args.data_weights)
+valid_datasets = [MixedTemporalDataset(test_path, res=args.res, n_channels = train_dataset.n_channels,t_in = args.T_in, t_ar=-1, normalize=False, train=False, valid=False) for i, test_path in enumerate(test_paths)]
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=24)
+valid_loaders = [torch.utils.data.DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False,num_workers=24) for test_dataset in valid_datasets]
 ntrain, ntests = len(train_dataset), [len(test_dataset) for test_dataset in valid_datasets]
 print('Train num {} test num {}'.format(train_dataset.n_sizes, ntests))
 ################################################################
@@ -173,14 +183,14 @@ elif args.lr_method == 'linear':
     scheduler = LambdaLR(optimizer, lambda steps: (1 - steps / (args.epochs * len(train_loader))))
 elif args.lr_method == 'restart':
     print('Using cos anneal restart')
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=len(train_loader) * args.lr_step_size, eta_min=0.)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=len(train_loader) * args.lr_step_size, eseta_min=0.)
 elif args.lr_method == 'cyclic':
     scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=1e-3, step_size_up=args.lr_step_size * len(train_loader),mode='triangular2', cycle_momentum=False)
 else:
     raise NotImplementedError
 
 comment = args.comment + '_{}_{}'.format(len(train_paths), ntrain)
-log_path = 'logs/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('logs',args.log_path + comment)
+log_path = 'logs_pretrain/' + time.strftime('%m%d_%H_%M_%S') + comment if len(args.log_path)==0  else os.path.join('logs_pretrain',args.log_path + comment)
 model_path = log_path + '/model.pth'
 if args.use_writer:
     writer = SummaryWriter(log_dir=log_path)
@@ -261,7 +271,7 @@ for ep in range(args.epochs):
             writer.add_scalar("train_loss_step", loss.item()/(xx.shape[0] * yy.shape[-2] / args.T_bundle), iter)
             writer.add_scalar("train_loss_full", l2_full / xx.shape[0], iter)
 
-            ## reset model
+        ## reset model
             if loss.item() > 10 * loss_previous : # or (ep > 50 and l2_full / xx.shape[0] > 0.9):
                 print('loss explodes, loading model from previous epoch')
                 checkpoint = torch.load(model_path,map_location='cuda:{}'.format(args.gpu))
@@ -270,59 +280,62 @@ for ep in range(args.epochs):
                 loss_previous = loss.item()
 
         t_train += default_timer() -  t_1
-        # print("t_train", t_train)
         t_1 = default_timer()
         # max_mem = torch.cuda.max_memory_allocated() / 1024 ** 2
         # s_mem = " MEM: {:.2f} MB ".format(max_mem)
         # print(s_mem)
+    print("ep", ep, "t_train", t_train, "t_load",t_load)
+    if args.use_writer:
+        print("train_l2",train_l2_step_avg)
+        print("train_l2", train_l2_full_avg)
+    if args.use_writer:
+        torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path)
+    if (ep+1) % 100 == 0:
+        test_l2_fulls, test_l2_steps = [], []
+        with torch.no_grad():
+            model.eval()
+            for id, test_loader in enumerate(valid_loaders):
+                print(args.test_paths[id])
+                test_l2_full, test_l2_step = 0, 0
+                for xx, yy, msk, _ in test_loader:
+                    loss = 0
+                    xx = xx.to(device)
+                    yy = yy.to(device)
+                    msk = msk.to(device)
 
-    test_l2_fulls, test_l2_steps = [], []
-    with torch.no_grad():
-        model.eval()
-        for id, test_loader in enumerate(valid_loaders):
-            print(args.test_paths[id])
-            test_l2_full, test_l2_step = 0, 0
-            for xx, yy, msk, _ in test_loader:
-                loss = 0
-                xx = xx.to(device)
-                yy = yy.to(device)
-                msk = msk.to(device)
 
+                    for t in range(0, yy.shape[-2], args.T_bundle):
+                        y = yy[..., t:t + args.T_bundle, :]
+                        im, _ = model(xx)
+                        loss += myloss(im, y, mask=msk)
 
-                for t in range(0, yy.shape[-2], args.T_bundle):
-                    y = yy[..., t:t + args.T_bundle, :]
-                    im, _ = model(xx)
-                    loss += myloss(im, y, mask=msk)
+                        if t == 0:
+                            pred = im
+                        else:
+                            pred = torch.cat((pred, im), -2)
 
-                    if t == 0:
-                        pred = im
-                    else:
-                        pred = torch.cat((pred, im), -2)
+                        xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
 
-                    xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
+                    test_l2_step += loss.item()
+                    test_l2_full += myloss(pred, yy, mask=msk)
+                test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] / (yy.shape[-2] / args.T_bundle), test_l2_full / ntests[id]
+                test_l2_steps.append(test_l2_step_avg)
+                test_l2_fulls.append(test_l2_full_avg)
+                if args.use_writer:
+                    writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg)
+                    writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg)
+                print("test_l2_steps", test_l2_step_avg)
+                print("test_l2_fulls", test_l2_full_avg)
 
-                test_l2_step += loss.item()
-                test_l2_full += myloss(pred, yy, mask=msk)
-            test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] / (yy.shape[-2] / args.T_bundle), test_l2_full / ntests[id]
-            test_l2_steps.append(test_l2_step_avg)
-            test_l2_fulls.append(test_l2_full_avg)
-            if args.use_writer:
-                writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg)
-                writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg)
-            print("test_l2_steps", test_l2_step_avg)
-            print("test_l2_fulls", test_l2_full_avg)
-        if args.use_writer:
-            torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path)
-
-        t_test = default_timer() - t_1
-        t2 = t_1 = default_timer()
-        lr = optimizer.param_groups[0]['lr']
-        print(
-            'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
-                ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
-                ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
-                ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
-                t_train / len(train_loader), t_load / len(train_loader), t_test))
+            t_test = default_timer() - t_1
+            t2 = t_1 = default_timer()
+            lr = optimizer.param_groups[0]['lr']
+            print(
+                'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
+                    ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
+                    ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
+                    ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
+                    t_train / len(train_loader), t_load / len(train_loader), t_test))
 
         # print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f},  time train avg {:.5f} load avg {:.5f} '.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg, t_train / len(train_loader), t_load / len(train_loader)))
         # print(
