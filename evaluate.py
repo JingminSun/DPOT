@@ -82,7 +82,7 @@ parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
 
 parser.add_argument('--res', type=int, default=128)
-parser.add_argument('--noise_scale',type=float, default=0.0005)
+parser.add_argument('--noise_scale',type=float, default=0)
 # parser.add_argument('--n_channels',type=int,default=-1)
 
 
@@ -244,7 +244,7 @@ with torch.no_grad():
     for id, test_loader in enumerate(test_loaders):
         test_name = args.test_paths[id]
         print(test_name)
-        num_samples += ntests[id]
+
 
         test_l2_full, test_l2_step = 0, 0
         nn = 0
@@ -277,21 +277,22 @@ with torch.no_grad():
                 xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
                 total_steps += xx.shape[0]
 
-                test_l2_step += error / (yy.shape[-2] / args.T_bundle)  # sum step error/5
-                # test_l2_step += loss.item()/ (yy.shape[-2] / args.T_bundle)
-                # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
-                pred_reshape = pred.permute(0, 3, 4, 1, 2)
-                yy_reshape = yy.permute(0, 3, 4, 1, 2)
-                # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
-                test_l2_full += get_error(pred_reshape - yy_reshape, yy_reshape)
-                # test_l2_full +=myloss(pred, yy, mask=msk)
+            test_l2_step += error/ (yy.shape[-2] / args.T_bundle) # sum step error/5
+            # test_l2_step += loss.item()/ (yy.shape[-2] / args.T_bundle)
+            # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
+            pred_reshape = pred.permute(0, 3,4, 1, 2)
+            yy_reshape = yy.permute(0,3,4,1,2)
+            # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
+            test_l2_full += get_error(pred_reshape-yy_reshape,yy_reshape)
+            # test_l2_full +=myloss(pred, yy, mask=msk)
 
-            test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id], test_l2_full / ntests[id]
-            test_l2_steps.append(test_l2_step_avg.item())
-            test_l2_fulls.append(test_l2_full_avg.item())
-            if "ns2d_pdb_M1" in test_name:
-                total_pdb += test_l2_full
-                step_pdb += test_l2_step
+        test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] , test_l2_full / ntests[id]
+        test_l2_steps.append(test_l2_step_avg.item())
+        test_l2_fulls.append(test_l2_full_avg.item())
+        if "ns2d_pdb_M1" in test_name:
+            total_pdb += test_l2_full
+            step_pdb += test_l2_step
+            num_samples += ntests[id]
 
 
 print(test_l2_steps)
