@@ -24,7 +24,7 @@ from models.fno import FNO2d
 from models.dpot import DPOTNet
 from models.dpot_res import CDPOTNet
 import pickle
-
+import wandb
 
 
 
@@ -43,15 +43,15 @@ parser.add_argument('--train_paths', nargs='+', type=str, default=[
     'ns2d_pdb_M1_eta1e-2_zeta1e-2',
     'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
     'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
-    'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-    'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
-    'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
-    'ns2d_pdb_incom',
-    'swe_pdb',
-    'ns2d_cond_pda',
-    'ns2d_pda',
-    'cfdbench',
+    # 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+    # 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
+    # 'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+    # 'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+    # 'ns2d_pdb_incom',
+    # 'swe_pdb',
+    # 'ns2d_cond_pda',
+    # 'ns2d_pda',
+    # 'cfdbench',
 ])
 parser.add_argument('--test_paths', nargs='+', type=str,
                     default=['ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
@@ -70,11 +70,11 @@ parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
     800,
     800,
     800,
-    876,
-    800,
-    2496,
-    5200,
-    8774
+    # 876,
+    # 800,
+    # 2496,
+    # 5200,
+    # 8774
 ])
 parser.add_argument('--data_weights',nargs='+',type=int, default=[1])
 parser.add_argument('--use_writer', action='store_true',default=False)
@@ -115,7 +115,7 @@ parser.add_argument('--warmup_epochs',type=int, default=26)
 parser.add_argument('--T_in', type=int, default=10)
 parser.add_argument('--T_ar', type=int, default=1)
 parser.add_argument('--T_bundle', type=int, default=1)
-parser.add_argument('--gpu', type=str, default="1")
+parser.add_argument('--gpu', type=str, default="2")
 parser.add_argument('--comment',type=str, default="")
 parser.add_argument('--log_path',type=str,default='')
 args = parser.parse_args()
@@ -183,7 +183,7 @@ elif args.lr_method == 'linear':
     scheduler = LambdaLR(optimizer, lambda steps: (1 - steps / (args.epochs * len(train_loader))))
 elif args.lr_method == 'restart':
     print('Using cos anneal restart')
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=len(train_loader) * args.lr_step_size, eseta_min=0.)
+    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=len(train_loader) * args.lr_step_size, eta_min=0.)
 elif args.lr_method == 'cyclic':
     scheduler = CyclicLR(optimizer, base_lr=1e-5, max_lr=1e-3, step_size_up=args.lr_step_size * len(train_loader),mode='triangular2', cycle_momentum=False)
 else:
@@ -204,6 +204,18 @@ else:
 print(model)
 count_parameters(model)
 
+if args.use_writer:
+    wandb.init(
+        project="dpot",
+        resume="allow",
+        id=wandb.util.generate_id(),
+        name="",
+        entity="schaefferlab1",
+        notes="",
+    )
+
+    wandb.config.update(args, allow_val_change=True)
+    wandb.log({"id": "dpot_final_run"})
 ################################################################
 # Main function for pretraining
 ################################################################
@@ -258,19 +270,18 @@ for ep in range(args.epochs):
         train_l2_full += l2_full.item()
 
         optimizer.zero_grad()
-        total_loss = loss  # + 1.0 * cls_loss
+        total_loss = loss  + 0.0 * cls_loss
         total_loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
         scheduler.step()
 
-        train_l2_step_avg, train_l2_full_avg = train_l2_step / ntrain / (yy.shape[-2] / args.T_bundle), train_l2_full / ntrain
-        cls_acc = cls_correct / cls_total
         iter +=1
         if args.use_writer:
             writer.add_scalar("train_loss_step", loss.item()/(xx.shape[0] * yy.shape[-2] / args.T_bundle), iter)
             writer.add_scalar("train_loss_full", l2_full / xx.shape[0], iter)
-
+            wandb.log({"train_loss_step": loss.item()/(xx.shape[0] * yy.shape[-2] / args.T_bundle), "train_loss_full": l2_full / xx.shape[0],
+                       "iter":iter})
         ## reset model
             if loss.item() > 10 * loss_previous : # or (ep > 50 and l2_full / xx.shape[0] > 0.9):
                 print('loss explodes, loading model from previous epoch')
@@ -284,13 +295,13 @@ for ep in range(args.epochs):
         # max_mem = torch.cuda.max_memory_allocated() / 1024 ** 2
         # s_mem = " MEM: {:.2f} MB ".format(max_mem)
         # print(s_mem)
+    train_l2_step_avg, train_l2_full_avg = train_l2_step / ntrain / (yy.shape[-2] / args.T_bundle), train_l2_full / ntrain
+    cls_acc = cls_correct / cls_total
     print("ep", ep, "t_train", t_train, "t_load",t_load)
     if args.use_writer:
-        print("train_l2",train_l2_step_avg)
-        print("train_l2", train_l2_full_avg)
-    if args.use_writer:
+        wandb.log({ "train_l2_step":train_l2_step_avg, "train_l2_full":train_l2_full_avg})
         torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path)
-    if (ep+1) % 100 == 0:
+    if (ep+1) % 10 == 0:
         test_l2_fulls, test_l2_steps = [], []
         with torch.no_grad():
             model.eval()
@@ -322,6 +333,11 @@ for ep in range(args.epochs):
                 test_l2_steps.append(test_l2_step_avg)
                 test_l2_fulls.append(test_l2_full_avg)
                 if args.use_writer:
+                    wandb.log({
+                        f"test_loss_step_{test_paths[id]}": test_l2_step_avg,
+                        f"test_loss_full_{test_paths[id]}": test_l2_full_avg,
+                        "epoch": ep  # Example: You can log the epoch or step if needed
+                    })
                     writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg)
                     writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg)
                 print("test_l2_steps", test_l2_step_avg)

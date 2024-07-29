@@ -1,7 +1,7 @@
 # Editor folders
 .idea/
 .vscode/
-
+wandb/
 # Some temporary folders/files
 mae/
 legacy/

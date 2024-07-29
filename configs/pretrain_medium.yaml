@@ -106,6 +106,6 @@ tasks:
   T_bundle: [1]
   beta1: [0.9]
   beta2: [0.9]
-  batch_size: [40]
+  batch_size: [160]
 
 

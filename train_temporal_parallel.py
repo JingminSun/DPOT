@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 
-
+import wandb
 from accelerate import Accelerator
 from timeit import default_timer
 from torch.optim.lr_scheduler import OneCycleLR, StepLR, LambdaLR, CosineAnnealingWarmRestarts, CyclicLR
@@ -209,12 +209,22 @@ if __name__ == "__main__":
         fp = open(log_path + '/logs.txt', 'w+',buffering=1)
         json.dump(vars(args), open(log_path + '/params.json', 'w'),indent=4)
         sys.stdout = fp
+        wandb.init(
+            project="dpot",
+            resume="allow",
+            id=wandb.util.generate_id(),
+            name="",
+            entity="schaefferlab1",
+            notes="",
+        )
+
+        wandb.config.update(args, allow_val_change=True)
+        wandb.log({"id": "dpot_final_run"})
 
     else:
         writer = None
     print(model)
     count_parameters(model)
-
 
     ##multi-gpu
     model, optimizer, scheduler, train_loader, *test_loaders = accelerator.prepare(model, optimizer, scheduler, train_loader, *test_loaders)
@@ -282,12 +292,14 @@ if __name__ == "__main__":
             optimizer.step()
             scheduler.step()
 
-            train_l2_step_avg, train_l2_full_avg = train_l2_step / ntrain / (yy.shape[-2] / args.T_bundle), train_l2_full / ntrain
             cls_acc = cls_correct / cls_total
             iter +=1
             if args.use_writer:
                 writer.add_scalar("train_loss_step", loss.item()/(xx.shape[0] * yy.shape[-2] / args.T_bundle), iter)
                 writer.add_scalar("train_loss_full", l2_full / xx.shape[0], iter)
+                wandb.log({"train_loss_step": loss.item() / (xx.shape[0] * yy.shape[-2] / args.T_bundle),
+                           "train_loss_full": l2_full / xx.shape[0],
+                           "iter": iter})
 
                 ## reset model
                 if loss.item() > 10 * loss_previous : # or (ep > 50 and l2_full / xx.shape[0] > 0.9):
@@ -299,8 +311,11 @@ if __name__ == "__main__":
 
             t_train += default_timer() -  t_1
             t_1 = default_timer()
+        train_l2_step_avg, train_l2_full_avg = train_l2_step / ntrain / (
+                    yy.shape[-2] / args.T_bundle), train_l2_full / ntrain
 
-
+        if args.use_writer:
+            wandb.log({"train_l2_step": train_l2_step_avg, "train_l2_full": train_l2_full_avg})
 
         test_l2_fulls, test_l2_steps = [], []
         model.eval()
@@ -342,7 +357,13 @@ if __name__ == "__main__":
                 print("test_l2_fulls", ep, test_l2_full_avg)
 
         if args.use_writer:
+            wandb.log({
+                f"test_loss_step_{test_paths[id]}": test_l2_step_avg,
+                f"test_loss_full_{test_paths[id]}": test_l2_full_avg,
+                "epoch": ep  # Example: You can log the epoch or step if needed
+            })
             torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path_fun(ep // ckpt_save_epochs))
+
 
         t_test = default_timer() - t_1
         t2 = t_1 = default_timer()

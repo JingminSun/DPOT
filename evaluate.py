@@ -2,7 +2,7 @@ import sys
 import os
 # sys.path.append(['.','./../'])
 os.environ['OMP_NUM_THREADS'] = '16'
-
+import matplotlib.pyplot as plt
 import json
 import time
 import argparse
@@ -17,6 +17,7 @@ from utils.criterion import SimpleLpLoss
 from utils.griddataset import MixedTemporalDataset
 from models.fno import FNO2d
 from models.dpot import DPOTNet
+import wandb
 
 # torch.manual_seed(0)
 # np.random.seed(0)
@@ -62,7 +63,7 @@ parser.add_argument('--test_paths', nargs='+', type=str,
                         'ns2d_pda',
                         'cfdbench',
                     ])
-parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0722_20_49_19M_13_53346/model.pth')
+parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0726_08_41_19M_13_53346/model.pth')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
     8000,
     8000,
@@ -216,6 +217,19 @@ else:
 print(model)
 count_parameters(model)
 
+if args.use_writer:
+    wandb.init(
+        project="dpot",
+        resume="allow",
+        id=wandb.util.generate_id(),
+        name="eval_0722run_step10",
+        entity="schaefferlab1",
+        notes="",
+    )
+
+    wandb.config.update(args, allow_val_change=True)
+    wandb.log({"id": "evaluation"})
+
 ################################################################
 # Main function for pretraining
 ################################################################
@@ -278,10 +292,10 @@ with torch.no_grad():
                 total_steps += xx.shape[0]
 
             test_l2_step += error/ (yy.shape[-2] / args.T_bundle) # sum step error/5
-            # test_l2_step += loss.item()/ (yy.shape[-2] / args.T_bundle)
+            # test_l2_step += loss/ (yy.shape[-2] / args.T_bundle)
             # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
-            pred_reshape = pred.permute(0, 3,4, 1, 2)
-            yy_reshape = yy.permute(0,3,4,1,2)
+            pred_reshape = pred.permute(0, 3, 1, 2,4)
+            yy_reshape = yy.permute(0, 3, 1, 2,4)
             # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
             test_l2_full += get_error(pred_reshape-yy_reshape,yy_reshape)
             # test_l2_full +=myloss(pred, yy, mask=msk)
@@ -294,10 +308,47 @@ with torch.no_grad():
             step_pdb += test_l2_step
             num_samples += ntests[id]
 
+        # Select a sample from the predictions and ground truth
+        sample_idx = 0  # You can choose any index
+        for jj in range(pred.shape[-1]):
+            sample_pred = pred_reshape[sample_idx:sample_idx+1, :, :, :, :].cpu().numpy()
+            sample_yy = yy_reshape[sample_idx:sample_idx+1, :, :, :, :].cpu().numpy()
+
+            # Calculate error for the sample
+            sample_error = get_error(torch.tensor(sample_pred-sample_yy), torch.tensor(sample_yy)).item()
+
+            # Plot and log a sample prediction
+            fig, axs = plt.subplots(1, 3, figsize=(18, 6))
+            fig.suptitle(f" {test_name}, Error: {sample_error:.5f}")
+            im1 = axs[0].imshow(sample_pred[0,-1,:,:,jj], cmap='viridis')
+            axs[0].set_title(f' Prediction')
+            fig.colorbar(im1, ax=axs[0])
+            im2 = axs[1].imshow(sample_yy[0,-1,:,:,jj], cmap='viridis')
+            axs[1].set_title(f' Ground Truth')
+            fig.colorbar(im2, ax=axs[1])
+            im3 = axs[2].imshow(np.abs(sample_yy[0,-1,:,:,jj] -sample_pred[0,0,:,:,jj]), cmap='viridis')
+            axs[2].set_title(f' Diff')
+            plt.tight_layout()
+            fig.colorbar(im3, ax=axs[2])
+            if args.use_writer:
+                wandb.log({f"{test_name}_sample_plot_channel_{jj}": wandb.Image(fig)})
+            plt.close(fig)
 
 print(test_l2_steps)
 print(test_l2_fulls)
 for i in range(len(test_paths)):
     print('{}: {:.5f}, {:.5f}'.format(test_paths[i], test_l2_steps[i],test_l2_fulls[i]))
-print('ns2d_pdb_M1: {:.5f}, {:.5f}'.format( step_pdb/num_samples,total_pdb/num_samples))
-print('Total time {} total steps {} Avg time {}'.format(time_test, total_steps, time_test/total_steps))
+    if args.use_writer:
+        wandb.log({f"test_loss_step_{test_paths[i]}": test_l2_steps[i], f"test_loss_full_{test_paths[i]}": test_l2_fulls[i]})
+
+# Log the aggregated ns2d_pdb_M1 values
+print('ns2d_pdb_M1: {:.5f}, {:.5f}'.format(step_pdb / num_samples, total_pdb / num_samples))
+if args.use_writer:
+
+    wandb.log({"ns2d_pdb_M1_step": step_pdb / num_samples, "ns2d_pdb_M1_full": total_pdb / num_samples})
+
+# Log the total time and average time
+print('Total time {} total steps {} Avg time {}'.format(time_test, total_steps, time_test / total_steps))
+if args.use_writer:
+
+    wandb.log({"total_time": time_test, "total_steps": total_steps, "avg_time_per_step": time_test / total_steps})
