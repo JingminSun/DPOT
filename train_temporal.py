@@ -300,7 +300,7 @@ for ep in range(args.epochs):
     print("ep", ep, "t_train", t_train, "t_load",t_load)
     if args.use_writer:
         wandb.log({ "train_l2_step":train_l2_step_avg, "train_l2_full":train_l2_full_avg})
-        torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path)
+        torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict(),'scheduler': scheduler.state_dict()}, model_path)
     if (ep+1) % 10 == 0:
         test_l2_fulls, test_l2_steps = [], []
         with torch.no_grad():
@@ -343,22 +343,15 @@ for ep in range(args.epochs):
                 print("test_l2_steps", test_l2_step_avg)
                 print("test_l2_fulls", test_l2_full_avg)
 
-            t_test = default_timer() - t_1
-            t2 = t_1 = default_timer()
-            lr = optimizer.param_groups[0]['lr']
-            print(
-                'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
-                    ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
-                    ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
-                    ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
-                    t_train / len(train_loader), t_load / len(train_loader), t_test))
-
-        # print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f},  time train avg {:.5f} load avg {:.5f} '.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg, t_train / len(train_loader), t_load / len(train_loader)))
-        # print(
-        #     ' test l2 step {} test l2 full {},  test {:.5f}'.format(
-        #         ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
-        #         ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]), t_test))
-
+        t_test = default_timer() - t_1
+        t2 = t_1 = default_timer()
+        lr = optimizer.param_groups[0]['lr']
+        print(
+            'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
+                ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
+                ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
+                ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
+                t_train / len(train_loader), t_load / len(train_loader), t_test))
 
 
 

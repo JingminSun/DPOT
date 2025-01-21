@@ -52,18 +52,21 @@ parser.add_argument('--train_paths', nargs='+', type=str, default=[
 ])
 parser.add_argument('--test_paths', nargs='+', type=str,
                     default=[
-                        'ns2d_pdb_M1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1_eta1e-2_zeta1e-2',
-                             'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1', 'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
-                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128', 'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
-                             'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
-                             'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
-                             'ns2d_pdb_incom',
                         'swe_pdb',
+                        'ns2d_pdb_incom',
                         'ns2d_cond_pda',
-                        'ns2d_pda',
                         'cfdbench',
+                        'ns2d_pda',
+                        'ns2d_pdb_M1e-1_eta1e-1_zeta1e-1',
+                        'ns2d_pdb_M1e-1_eta1e-2_zeta1e-2',
+                        'ns2d_pdb_M1_eta1e-1_zeta1e-1',
+                        'ns2d_pdb_M1_eta1e-2_zeta1e-2',
+                        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_rand_128',
+                        'ns2d_pdb_M1_eta1e-8_zeta1e-8_rand_128',
+                        'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
+                        'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
                     ])
-parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0726_08_41_19M_13_53346/model.pth')
+parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_1124_14_27_10:L_13_69538/model_19.pth')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
     8000,
     8000,
@@ -88,8 +91,10 @@ parser.add_argument('--noise_scale',type=float, default=0)
 
 
 ### shared params
-parser.add_argument('--width', type=int, default=1024)
-parser.add_argument('--n_layers',type=int, default=12)
+# parser.add_argument('--width', type=int, default=1024)
+parser.add_argument('--width', type=int, default=1536)
+# parser.add_argument('--n_layers',type=int, default=12)
+parser.add_argument('--n_layers',type=int, default=24)
 parser.add_argument('--act',type=str, default='gelu')
 
 ### GNOT params
@@ -105,8 +110,8 @@ parser.add_argument('--normalize',type=int, default=0)
 parser.add_argument('--patch_size',type=int, default=8)
 parser.add_argument('--n_blocks',type=int, default=8)
 parser.add_argument('--mlp_ratio',type=int, default=4)
-parser.add_argument('--out_layer_dim', type=int, default=32)
-
+# parser.add_argument('--out_layer_dim', type=int, default=32)
+parser.add_argument('--out_layer_dim', type=int, default=128)
 
 parser.add_argument('--batch_size', type=int, default=20)
 parser.add_argument('--epochs', type=int, default=1000)
@@ -123,7 +128,7 @@ parser.add_argument('--sub', type=int, default=1)
 parser.add_argument('--T_in', type=int, default=10)
 parser.add_argument('--T_ar', type=int, default=1)
 parser.add_argument('--T_bundle', type=int, default=1)
-parser.add_argument('--gpu', type=str, default="3")
+parser.add_argument('--gpu', type=str, default="2")
 parser.add_argument('--comment',type=str, default="")
 parser.add_argument('--log_path',type=str,default='')
 
@@ -222,7 +227,7 @@ if args.use_writer:
         project="dpot",
         resume="allow",
         id=wandb.util.generate_id(),
-        name="eval_0722run_step10",
+        name="eval_1124run_step10",
         entity="schaefferlab1",
         notes="",
     )
@@ -342,7 +347,7 @@ for i in range(len(test_paths)):
         wandb.log({f"test_loss_step_{test_paths[i]}": test_l2_steps[i], f"test_loss_full_{test_paths[i]}": test_l2_fulls[i]})
 
 # Log the aggregated ns2d_pdb_M1 values
-print('ns2d_pdb_M1: {:.5f}, {:.5f}'.format(step_pdb / num_samples, total_pdb / num_samples))
+print('ns2d_pdb_M: {:.5f}, {:.5f}'.format(step_pdb / num_samples, total_pdb / num_samples))
 if args.use_writer:
 
     wandb.log({"ns2d_pdb_M1_step": step_pdb / num_samples, "ns2d_pdb_M1_full": total_pdb / num_samples})

@@ -151,7 +151,7 @@ class ParallelTrainer:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Parallel Training or pretraining Neural Operators')
-    parser.add_argument('--config_file',type=str,default='pretrain_medium.yaml')
+    parser.add_argument('--config_file',type=str,default='pretrain_large.yaml')
     args = parser.parse_args()
 
     trainer = ParallelTrainer(os.path.join('configs',args.config_file))

@@ -292,6 +292,8 @@ if __name__ == "__main__":
             optimizer.step()
             scheduler.step()
 
+            train_l2_step_avg, train_l2_full_avg = train_l2_step / ntrain / (
+                    yy.shape[-2] / args.T_bundle), train_l2_full / ntrain
             cls_acc = cls_correct / cls_total
             iter +=1
             if args.use_writer:
@@ -311,78 +313,67 @@ if __name__ == "__main__":
 
             t_train += default_timer() -  t_1
             t_1 = default_timer()
-        train_l2_step_avg, train_l2_full_avg = train_l2_step / ntrain / (
-                    yy.shape[-2] / args.T_bundle), train_l2_full / ntrain
 
         if args.use_writer:
             wandb.log({"train_l2_step": train_l2_step_avg, "train_l2_full": train_l2_full_avg})
+            torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict(),
+                        'scheduler': scheduler.state_dict()}, model_path_fun(ep // ckpt_save_epochs))
 
-        test_l2_fulls, test_l2_steps = [], []
-        model.eval()
-        with torch.no_grad():
-            # model.eval()
-            for id, test_loader in enumerate(test_loaders):
-                print(args.test_paths[id])
-                test_l2_full, test_l2_step, ntest = 0., 0., 0
-                for xx, yy, msk, _ in test_loader:
-                    loss = 0
-                    xx = xx.to(device)
-                    yy = yy.to(device)
-                    msk = msk.to(device)
-
-
-                    for t in range(0, yy.shape[-2], args.T_bundle):
-                        y = yy[..., t:t + args.T_bundle, :]
-                        im, _ = model(xx)
-                        loss += myloss(im, y, mask=msk)
-
-                        if t == 0:
-                            pred = im
-                        else:
-                            pred = torch.cat((pred, im), -2)
-
-                        xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
-                    test_l2_step += torch.cat(accelerator.gather_for_metrics((loss,))).sum()
-                    metrics_gathered = torch.cat(accelerator.gather_for_metrics((myloss(pred, yy, mask=msk),)))
-                    test_l2_full += metrics_gathered.sum()
-                    ntest += metrics_gathered.shape[0] * xx.shape[0]
-
-                test_l2_step_avg, test_l2_full_avg = test_l2_step.item() / ntest / (yy.shape[-2] / args.T_bundle), test_l2_full.item() / ntest
-                test_l2_steps.append(test_l2_step_avg)
-                test_l2_fulls.append(test_l2_full_avg)
-                if args.use_writer:
-                    writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg, ep)
-                    writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg, ep)
-                print("test_l2_steps", ep, test_l2_step_avg)
-                print("test_l2_fulls", ep, test_l2_full_avg)
-
-        if args.use_writer:
-            wandb.log({
-                f"test_loss_step_{test_paths[id]}": test_l2_step_avg,
-                f"test_loss_full_{test_paths[id]}": test_l2_full_avg,
-                "epoch": ep  # Example: You can log the epoch or step if needed
-            })
-            torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path_fun(ep // ckpt_save_epochs))
+        if (ep + 1) % 10 == 0:
+            test_l2_fulls, test_l2_steps = [], []
+            model.eval()
+            with torch.no_grad():
+                # model.eval()
+                for id, test_loader in enumerate(test_loaders):
+                    print(args.test_paths[id])
+                    test_l2_full, test_l2_step, ntest = 0., 0., 0
+                    for xx, yy, msk, _ in test_loader:
+                        loss = 0
+                        xx = xx.to(device)
+                        yy = yy.to(device)
+                        msk = msk.to(device)
 
 
-        t_test = default_timer() - t_1
-        t2 = t_1 = default_timer()
-        lr = optimizer.param_groups[0]['lr']
-        print(
-            'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
-                ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
-                ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
-                ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
-                t_train / len(train_loader), t_load / len(train_loader), t_test))
+                        for t in range(0, yy.shape[-2], args.T_bundle):
+                            y = yy[..., t:t + args.T_bundle, :]
+                            im, _ = model(xx)
+                            loss += myloss(im, y, mask=msk)
 
-        # if args.use_writer:
-        #     torch.save({'args': args, 'model': model.state_dict(), 'optimizer': optimizer.state_dict()}, model_path_fun(ep // ckpt_save_epochs))
-        #
-        # t_test = default_timer() - t_1
-        # t2 = t_1 = default_timer()
-        # lr = optimizer.param_groups[0]['lr']
-        # print('epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, cls acc {:.5f}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(ep, t2 - t1, lr,train_l2_step_avg, train_l2_full_avg,', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]), cls_acc, t_train / len(train_loader), t_load / len(train_loader), t_test))
-        #
+                            if t == 0:
+                                pred = im
+                            else:
+                                pred = torch.cat((pred, im), -2)
+
+                            xx = torch.cat((xx[..., args.T_bundle:,:], im), dim=-2)
+                        test_l2_step += torch.cat(accelerator.gather_for_metrics((loss,))).sum()
+                        metrics_gathered = torch.cat(accelerator.gather_for_metrics((myloss(pred, yy, mask=msk),)))
+                        test_l2_full += metrics_gathered.sum()
+                        ntest += metrics_gathered.shape[0] * xx.shape[0]
+
+                    test_l2_step_avg, test_l2_full_avg = test_l2_step.item() / ntest / (yy.shape[-2] / args.T_bundle), test_l2_full.item() / ntest
+                    test_l2_steps.append(test_l2_step_avg)
+                    test_l2_fulls.append(test_l2_full_avg)
+                    if args.use_writer:
+                        writer.add_scalar("test_loss_step_{}".format(test_paths[id]), test_l2_step_avg, ep)
+                        writer.add_scalar("test_loss_full_{}".format(test_paths[id]), test_l2_full_avg, ep)
+                        wandb.log({
+                            f"test_loss_step_{test_paths[id]}": test_l2_step_avg,
+                            f"test_loss_full_{test_paths[id]}": test_l2_full_avg,
+                            "epoch": ep  # Example: You can log the epoch or step if needed
+                        })
+                    print("test_l2_steps", ep, test_l2_step_avg)
+                    print("test_l2_fulls", ep, test_l2_full_avg)
+
+
+            t_test = default_timer() - t_1
+            t2 = t_1 = default_timer()
+            lr = optimizer.param_groups[0]['lr']
+            print(
+                'epoch {}, time {:.5f}, lr {:.2e}, train l2 step {:.5f} train l2 full {:.5f}, test l2 step {} test l2 full {}, time train avg {:.5f} load avg {:.5f} test {:.5f}'.format(
+                    ep, t2 - t1, lr, train_l2_step_avg, train_l2_full_avg,
+                    ', '.join(['{:.5f}'.format(val) for val in test_l2_steps]),
+                    ', '.join(['{:.5f}'.format(val) for val in test_l2_fulls]),
+                    t_train / len(train_loader), t_load / len(train_loader), t_test))
 
 
 
