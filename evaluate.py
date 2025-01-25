@@ -66,7 +66,7 @@ parser.add_argument('--test_paths', nargs='+', type=str,
                         'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
                         'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
                     ])
-parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_1124_14_27_10:L_13_69538/model_19.pth')
+parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0729_10_47_00M_13_53346/model.pth')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
     8000,
     8000,
@@ -242,9 +242,15 @@ myloss = SimpleLpLoss(size_average=False)
 clsloss = torch.nn.CrossEntropyLoss(reduction='sum')
 
 
-def get_error(residuals,tar):
+def get_error(residuals,tar,mask = None):
 
-
+    if mask is not None:
+        mask1 = mask.permute(0,3,4,1,2)
+        try:
+            residuals = residuals * mask1
+            tar = tar * mask1
+        except:
+            print("aaa")
     t = residuals.shape[1]
 
     error = torch.sqrt((residuals **2).flatten(2).sum(2))
@@ -287,7 +293,7 @@ with torch.no_grad():
 
                 y_reshape = y.permute(0,3,4,1, 2) # (bs,h,w,t,c) to (bs,t,c,h,w)
                 im_reshape = im.permute(0,3,4, 1, 2)
-                error += get_error(im_reshape-y_reshape,y_reshape)
+                error += get_error(im_reshape-y_reshape,y_reshape,mask = msk)
                 if t == 0:
                     pred = im
                 else:
@@ -299,10 +305,10 @@ with torch.no_grad():
             test_l2_step += error/ (yy.shape[-2] / args.T_bundle) # sum step error/5
             # test_l2_step += loss/ (yy.shape[-2] / args.T_bundle)
             # print(error/ (yy.shape[-2] / args.T_bundle), loss.item()/ (yy.shape[-2] / args.T_bundle))
-            pred_reshape = pred.permute(0, 3, 1, 2,4)
-            yy_reshape = yy.permute(0, 3, 1, 2,4)
+            pred_reshape = pred.permute(0, 3, 4,1, 2)
+            yy_reshape = yy.permute(0, 3, 4, 1, 2)
             # print(get_error(pred_reshape-yy_reshape,yy_reshape),myloss(pred, yy, mask=msk) )
-            test_l2_full += get_error(pred_reshape-yy_reshape,yy_reshape)
+            test_l2_full += get_error(pred_reshape-yy_reshape,yy_reshape,mask = msk)
             # test_l2_full +=myloss(pred, yy, mask=msk)
 
         test_l2_step_avg, test_l2_full_avg = test_l2_step / ntests[id] , test_l2_full / ntests[id]
@@ -316,12 +322,14 @@ with torch.no_grad():
         # Select a sample from the predictions and ground truth
         sample_idx = 0  # You can choose any index
         for jj in range(pred.shape[-1]):
-            sample_pred = pred_reshape[sample_idx:sample_idx+1, :, :, :, :].cpu().numpy()
-            sample_yy = yy_reshape[sample_idx:sample_idx+1, :, :, :, :].cpu().numpy()
+            sample_pred = pred_reshape[sample_idx:sample_idx+1, :, :, :, :]
+            sample_yy = yy_reshape[sample_idx:sample_idx+1, :, :, :, :]
 
             # Calculate error for the sample
-            sample_error = get_error(torch.tensor(sample_pred-sample_yy), torch.tensor(sample_yy)).item()
+            sample_error = get_error(torch.tensor(sample_pred-sample_yy), torch.tensor(sample_yy),mask = msk[sample_idx:sample_idx+1, :, :, :, :]).item()
 
+            sample_pred = sample_pred.cpu().numpy()
+            sample_yy = sample_yy.cpu().numpy()
             # Plot and log a sample prediction
             fig, axs = plt.subplots(1, 3, figsize=(18, 6))
             fig.suptitle(f" {test_name}, Error: {sample_error:.5f}")
