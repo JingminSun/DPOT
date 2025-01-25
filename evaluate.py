@@ -66,7 +66,8 @@ parser.add_argument('--test_paths', nargs='+', type=str,
                         'ns2d_pdb_M1e-1_eta1e-8_zeta1e-8_turb_128',
                         'ns2d_pdb_M1_eta1e-8_zeta1e-8_turb_128',
                     ])
-parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0729_10_47_00M_13_53346/model.pth')
+parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_1124_14_27_10:L_13_69538/model_19.pth')
+# parser.add_argument('--resume_path',type=str, default='logs_pretrain/DPOT_new_0729_10_47_00M_13_53346/model.pth')
 parser.add_argument('--ntrain_list', nargs='+', type=int, default=[
     8000,
     8000,
